@@ -1,0 +1,90 @@
+#include <iostream>
+#include <string>
+#include <math.h>
+#include <sstream>
+using namespace std;
+
+int convertChacarater(char);
+long long int convertString(string);
+void printResults(long long int);
+inline string trim(string&);
+
+int main()
+{
+	string userInput;
+	string myString[8];
+	int stringCount = 0;
+	int i;
+	long long int decimal;
+	cout << "Enter a Hexadecimal Value: ";
+	while (cin >> userInput)
+	{
+		myString[i] = userInput;
+		cout << myString[i] << endl;
+		i++;
+		stringCount++;
+		if (cin.get() == '\n')
+			break;
+	}
+	if (stringCount > 1)
+	{
+		for (int i = 0; i < stringCount; i++)
+		{
+			stringstream ss(myString[i]);
+			getline(ss, myString[i], ',');
+			decimal = convertString(myString[i]);
+			printResults(decimal);
+			if (i < (stringCount - 1))
+				cout << ", ";
+			else
+				cout << endl;
+		}
+	}
+	else
+	{
+		i = 0;
+		stringstream ss(myString[i]);
+		while (getline(ss, myString[i], ','))
+		{
+			decimal = convertString(myString[i]);
+			printResults(decimal);
+			cout << ", ";
+			i++;
+		}
+	}
+}
+
+int convertChacarater(char letter)
+{
+	if (letter >= '0' && letter <= '9')
+		return letter - '0';
+	else if (letter >= 'a' && letter <= 'f')
+		return ((letter - 'a') + 10);
+	else if (letter >= 'A' && letter <= 'F')
+		return ((letter - 'A') + 10);
+	else
+		return -1;
+}
+
+long long int convertString(string hexadecimal)
+{
+	long long int decimalValue = 0;
+	int intValue;
+	for (int i = 0; i <= (hexadecimal.length() - 1); i++)
+	{
+		intValue = convertChacarater(hexadecimal[i]);
+		if (intValue != -1)
+			 decimalValue += (intValue * pow(16, (hexadecimal.length()-(i + 1))));
+		else
+			return -1;
+	}
+	return decimalValue;
+}
+
+void printResults(long long int decimal)
+{
+	if (decimal != -1)
+		cout << decimal;
+	else
+		cout << "NaN";
+}
