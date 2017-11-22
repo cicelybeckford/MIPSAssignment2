@@ -16,19 +16,24 @@ main:
 				addiu $a1, $a0, 0          #move address of hexadecimal into $a1
 				li $t8, 9
 			    li $t2, 0
-	ILOOP:		lb $t9, (a1)
+	ILOOP:		lb $t9, ($a1)
 	            beq $t9, 44, STOP   
-	            sw $t9, string($s0)          #store char in string
-		        addi $s0, $s0, 1             #next char in string
+	            beq $t9, 10, STOP
+	            sb $s6, ($a1)                #store char in string
 		        addi $a1, $a1, 1
-		        j LOOP
+		        j ILOOP
 				
-	STOP:	    addi $sp, $sp, -16
-				sw $s0, 0($sp)
+	STOP:	    addi $sp, $sp, -8
+				sw $s6, 0($sp)
 				jal convertstring
-				lw $s1, 8($sp)
-				jal printResults
-				addi $sp, $sp, 16
+				lw $s1, 4($sp)
+				jal printresults
+				addi $sp, $sp, 8
+				beq $t9, 10, END
+				j ILOOP
+				
+	END:        li $v0, 10                   #terminate program 
+			    syscall                      #and exit
 				
 				
 convertchar:
@@ -62,41 +67,39 @@ convertchar:
 convertstring:	
 				lw $a1, 0($sp)
 				li $t2, 0		             #initialize count to 0
-				
+				li $a1, 0
 				li $t0, 0
 				
     WHILELOOP:  move $t0, $t4
 				lb $t4, ($a1)                #load the next character into $t4
-				beq $t4, 44, STOP            #exit loop if character is null
+				beq $t4, 44, EXIT            #exit loop if character is null
 				beq $t0, 32, DO            #if the character in $t0(previous character) is a space
 				bne $t2, 1, NOSPACE        #and it is not the first character jump to NOSPACE 
 		DO:     beq $t4, 32, SKIP          #or if $t0 and $t3 (current character) are spaces jump
     NOSPACE:    add $a0, $zero, $t4
                 addi $sp, $sp, -4
-                sw $ra, 16($sp)
+                sw $ra, 8($sp)
 				jal convertchar
-				add $s1, $v0, $zero
-				beq $s1, -3, STOP
+				add $v1, $v0, $zero
+				sll $s1, $s1, 1
+				add $s1, $s1, $v1
+				beq $s1, -3, EXIT
 				addi $t2, $t2, 1             #increment the count
-	SKIP:		addi $a0, $a0, 1             #increment the string pointer
+	SKIP:		addi $a1, $a1, 1             #increment the string pointer
 				j WHILELOOP                  #return to the top of the loop
 	
-	STOP:		lw $ra, 16($sp)
+	EXIT:		lw $ra, 8($sp)
 				addi $sp, $sp, 4
-				sw $t7, 8($sp)
+				sw $t7, 4($sp)
 	            jr $ra
    
 printresults:   
 				bgt $s1, $zero, POSITIVE    #if the decimal value is negative jump to NEGATIVE label 
-                beq $s1, -3, INVALID
+                beq $s1, -3, NAN
 		        li $t0, 100000               #load 100000 into register $t0
 				divu $s1, $t0                #divide the decimal value by 100000 to split 
 			    mflo $v1                     #store the quotient in $s1 register
 				mfhi $s1                     #store the remainder in the $v1 register     
-			    bne $t9, 0, NOTEIGHT         #if length of the input was not 8 output a newline character
-				la $a0, output1              #address of string to print
-				li $v0, 4		             #system call code for printing string = 4
-				syscall
 				
 				move $a0, $v1                #primary address = s1 address (load pointer)
 				li $v0, 1                    #system call code for printing integer = 1
@@ -107,13 +110,9 @@ printresults:
 				syscall
 				j RETURN
 
-     INVALID:   la $a0, invalid              #address of string to print
+   NAN:         la $a0, invalid              #address of string to print
 				li $v0, 4		     #system call code for printing string = 4
 				syscall 
 				
      RETURN:	jr $ra
-
-				
-				
-
     
