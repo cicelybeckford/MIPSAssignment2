@@ -3,9 +3,10 @@
 .data  
     string: .asciiz ".space 8"
 	output1: .asciiz "\n" 
+	output2: .asciiz ","
 	invalid: .asciiz "NaN\n"
 	buffer:  .space 1001
-	
+	substring: .space 8
 .text
 main: 
 	 			li $v0, 8                  #system call code for reading string = 8
@@ -14,26 +15,38 @@ main:
 				syscall
 				
 				addiu $a1, $a0, 0          #move address of hexadecimal into $a1
-				li $t8, 9
-			    li $t2, 0
-	ILOOP:		lb $t9, ($a1)
-	            beq $t9, 44, STOP   
-	            beq $t9, 10, STOP
-	            sb $s6, ($a1)                #store char in string
-		        addi $a1, $a1, 1
-		        j ILOOP
-				
-	STOP:	    addi $sp, $sp, -8
-				sw $s6, 0($sp)
-				jal convertstring
-				lw $s1, 4($sp)
-				jal printresults
-				addi $sp, $sp, 8
-				beq $t9, 10, END
+				la $s6, substring
 				j ILOOP
 				
-	END:        li $v0, 10                   #terminate program 
-			    syscall                      #and exit
+	OLOOP:		la $s6, substring
+			    li $t2, 0
+			    addi $a1, $a1, 1
+	ILOOP:		lb $s0, ($a1)  
+	            beq $s0, 10, STOP
+				beq $s0, 44, STOP
+	            sb $s0, ($s6)               #store char in string 
+	            addi $t2, $t2, 1
+		        addi $a1, $a1, 1
+		        addi $s6, $s6, 1
+		        j ILOOP
+				
+	STOP:	    li $t7, 0
+	            sb $t7, ($s6)
+				sub $s6, $s6, $t2
+	            addi $sp, $sp, -8
+				sw $s6, 0($sp)
+				jal convertstring
+				jal printresults
+				addi $sp, $sp, 8
+				beq $s0, 10, END
+				
+				la $a0, output2            #address of string to print
+				li $v0, 4		           #system call code for printing string = 4
+				syscall
+				j OLOOP
+				
+	END:        li $v0, 10                 #terminate program 
+			    syscall                    #and exit
 				
 				
 convertchar:
@@ -51,50 +64,57 @@ convertchar:
 				j INVALID
 								  
     AND:        bge $t0, $t1, THEN         #and greater than or equal to 0 branch to LABEL1
-	AND2:		bge $t0, $t4, THEN2        #and greater than or equal to 'A' branch to LABEL2
-	AND3:       bge $t0, $s6, THEN3        #and greater than or equal to 'a' branch to LABEL3
+	AND2:		bge $t0, $t5, THEN2        #and greater than or equal to 'A' branch to LABEL2
+	AND3:       bge $t0, $t6, THEN3        #and greater than or equal to 'a' branch to LABEL3
 				j INVALID                  #jump to INVALID procedure
 	
 	THEN:		subu $v0, $t0, $t1
 				jr $ra   	
 	THEN2:	    subu $v0, $t0, $t5
+				addi $v0, $v0, 10
 				jr $ra 
 	THEN3:		subu $v0, $t0, $t3
+	            addi $v0, $v0, 10
 				jr $ra 
 	INVALID:    addi $v0, $zero, -3
 	            jr $ra
 
 convertstring:	
-				lw $a1, 0($sp)
-				li $t2, 0		             #initialize count to 0
-				li $a1, 0
+				lw $a2, 0($sp)
+				li $s2, 0				   #initialize count to 0
+				li $s1, 0		             #initialize count to 0
 				li $t0, 0
 				
-    WHILELOOP:  move $t0, $t4
-				lb $t4, ($a1)                #load the next character into $t4
-				beq $t4, 44, EXIT            #exit loop if character is null
+    WHILELOOP:  move $t0, $s4
+				lb $s4, ($a2)                #load the next character into $t4
+				beq $s4, 0, EXIT            #exit loop if character is null
 				beq $t0, 32, DO            #if the character in $t0(previous character) is a space
-				bne $t2, 1, NOSPACE        #and it is not the first character jump to NOSPACE 
-		DO:     beq $t4, 32, SKIP          #or if $t0 and $t3 (current character) are spaces jump
-    NOSPACE:    add $a0, $zero, $t4
+				bne $s2, 1, NOSPACE        #and it is not the first character jump to NOSPACE 
+		DO:     beq $s4, 32, SKIP          #or if $t0 and $t3 (current character) are spaces jump
+    NOSPACE:    add $a0, $zero, $s4
                 addi $sp, $sp, -4
                 sw $ra, 8($sp)
 				jal convertchar
 				add $v1, $v0, $zero
-				sll $s1, $s1, 1
+				beq $v1, -3, NOTVALID
+				li $t7, 10
+				mult $s1, $t7
+				mflo $s1
 				add $s1, $s1, $v1
-				beq $s1, -3, EXIT
-				addi $t2, $t2, 1             #increment the count
-	SKIP:		addi $a1, $a1, 1             #increment the string pointer
+				addi $s2, $s2, 1             #increment the count
+				
+	SKIP:		addi $a2, $a2, 1             #increment the string pointer
 				j WHILELOOP                  #return to the top of the loop
+	
+	NOTVALID:   move $s1, $v1
 	
 	EXIT:		lw $ra, 8($sp)
 				addi $sp, $sp, 4
-				sw $t7, 4($sp)
+				sw $s1, 4($sp)
 	            jr $ra
    
-printresults:   
-				bgt $s1, $zero, POSITIVE    #if the decimal value is negative jump to NEGATIVE label 
+printresults:   lw $s1, 4($sp)
+				bge $s1, $zero, POSITIVE    #if the decimal value is negative jump to NEGATIVE label 
                 beq $s1, -3, NAN
 		        li $t0, 100000               #load 100000 into register $t0
 				divu $s1, $t0                #divide the decimal value by 100000 to split 
