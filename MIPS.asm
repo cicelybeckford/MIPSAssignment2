@@ -4,9 +4,10 @@
     string: .asciiz ".space 8"
 	output1: .asciiz "\n" 
 	output2: .asciiz ","
-	invalid: .asciiz "NaN\n"
+	invalid: .asciiz "NaN"
+	toolarge: .asciiz "too large"
 	buffer:  .space 1001
-	substring: .space 8
+	substring: .space 15
 .text
 main: 
 	 			li $v0, 8                  #system call code for reading string = 8
@@ -35,8 +36,8 @@ main:
 				sub $s6, $s6, $t2
 	            addi $sp, $sp, -8
 				sw $s6, 0($sp)
-				jal convertstring
-				jal printresults
+				jal subprogram_1
+				jal subprogram_3
 				addi $sp, $sp, 8
 				beq $s0, 10, END
 				
@@ -48,8 +49,58 @@ main:
 	END:        li $v0, 10                 #terminate program 
 			    syscall                    #and exit
 				
+subprogram_1:	
+				lw $a2, 0($sp)
+				li $s2, 1				   #initialize count to 0
+				li $s1, 0		             #initialize count to 0
+				li $t0, 0
+				li $t9, 0
 				
-convertchar:
+    WHILELOOP:  move $t0, $s4
+				lb $s4, ($a2)                #load the next character into $t4
+				bgt $t9, 8, LARGE
+				beq $s4, 0, EXIT            #exit loop if character is null
+				beq $t0, 32, DO            #if the character in $t0(previous character) is a space
+				bne $s2, 1, NOSPACE        #and it is not the first character jump to NOSPACE 
+		DO:     beq $s4, 32, SKIP          #or if $t0 and $t3 (current character) are spaces jump
+    NOSPACE:    addi $sp, $sp, -4
+                sw $ra, 8($sp)
+				add $a0, $zero, $s4
+				jal subprogram_2
+				lw $ra, 8($sp)
+				addi $sp, $sp, 4
+				add $v1, $v0, $zero
+				beq $v1, -3, NOTVALID
+				beq $s2, 1, DONE
+				
+				li $t2,2
+                li $t8, 16                 #load 16 into register $t8 
+                li $t3, 16                 #load 16 into register $v0  
+	LOOP:	    beq $t2, $s2, DECIMAL      #if counter equals $t6 end loop
+                multu $t3, $t8             #16 *= 16
+                mflo $t8 		           #store result in $v0 register
+                addi $t2, $t2, 1          #increment counter
+                j LOOP                     #return to top of loop
+                
+   DECIMAL:     multu $v1, $t8             #multiply the integer by the results to get its value in the decimal
+                mflo $v1 
+				
+	DONE:	    add $s1, $s1, $v1
+				addi $s2, $s2, 1             #increment the count
+				
+	SKIP:		addi $t9, $t9, 1
+				addi $a2, $a2, 1             #increment the string pointer
+				j WHILELOOP                  #return to the top of the loop
+	
+	NOTVALID:   move $s1, $v1
+				j EXIT
+	
+	LARGE:      li $s1, -2
+				
+	EXIT:	    sw $s1, 4($sp)
+	            jr $ra
+   
+subprogram_2:
 				li $t1, '0'                #holds character '0'
 				li $t2, '9' 		       #holds character '9'
 				li $t3, 'a' 		       #holds character 'a'
@@ -63,59 +114,26 @@ convertchar:
 				ble $t0, $t4, AND3         #if the character is less than or equal to 'f'
 				j INVALID
 								  
-    AND:        bge $t0, $t1, THEN         #and greater than or equal to 0 branch to LABEL1
+	AND:        bge $t0, $t1, THEN         #and greater than or equal to 0 branch to LABEL1
 	AND2:		bge $t0, $t5, THEN2        #and greater than or equal to 'A' branch to LABEL2
 	AND3:       bge $t0, $t6, THEN3        #and greater than or equal to 'a' branch to LABEL3
 				j INVALID                  #jump to INVALID procedure
 	
-	THEN:		subu $v0, $t0, $t1
+    THEN:		subu $v0, $t0, $t1
 				jr $ra   	
 	THEN2:	    subu $v0, $t0, $t5
 				addi $v0, $v0, 10
 				jr $ra 
 	THEN3:		subu $v0, $t0, $t3
-	            addi $v0, $v0, 10
+				addi $v0, $v0, 10
 				jr $ra 
 	INVALID:    addi $v0, $zero, -3
-	            jr $ra
-
-convertstring:	
-				lw $a2, 0($sp)
-				li $s2, 0				   #initialize count to 0
-				li $s1, 0		             #initialize count to 0
-				li $t0, 0
-				
-    WHILELOOP:  move $t0, $s4
-				lb $s4, ($a2)                #load the next character into $t4
-				beq $s4, 0, EXIT            #exit loop if character is null
-				beq $t0, 32, DO            #if the character in $t0(previous character) is a space
-				bne $s2, 1, NOSPACE        #and it is not the first character jump to NOSPACE 
-		DO:     beq $s4, 32, SKIP          #or if $t0 and $t3 (current character) are spaces jump
-    NOSPACE:    add $a0, $zero, $s4
-                addi $sp, $sp, -4
-                sw $ra, 8($sp)
-				jal convertchar
-				add $v1, $v0, $zero
-				beq $v1, -3, NOTVALID
-				li $t7, 10
-				mult $s1, $t7
-				mflo $s1
-				add $s1, $s1, $v1
-				addi $s2, $s2, 1             #increment the count
-				
-	SKIP:		addi $a2, $a2, 1             #increment the string pointer
-				j WHILELOOP                  #return to the top of the loop
-	
-	NOTVALID:   move $s1, $v1
-	
-	EXIT:		lw $ra, 8($sp)
-				addi $sp, $sp, 4
-				sw $s1, 4($sp)
-	            jr $ra
+				jr $ra
    
-printresults:   lw $s1, 4($sp)
+subprogram_3:   lw $s1, 4($sp)
 				bge $s1, $zero, POSITIVE    #if the decimal value is negative jump to NEGATIVE label 
                 beq $s1, -3, NAN
+				beq $s1, -2, TOOLARGE
 		        li $t0, 100000               #load 100000 into register $t0
 				divu $s1, $t0                #divide the decimal value by 100000 to split 
 			    mflo $v1                     #store the quotient in $s1 register
@@ -131,6 +149,11 @@ printresults:   lw $s1, 4($sp)
 				j RETURN
 
    NAN:         la $a0, invalid              #address of string to print
+				li $v0, 4		     #system call code for printing string = 4
+				syscall 
+				j RETURN
+				
+  TOOLARGE:     la $a0, toolarge             #address of string to print
 				li $v0, 4		     #system call code for printing string = 4
 				syscall 
 				
