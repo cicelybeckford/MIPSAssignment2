@@ -31,14 +31,13 @@ main:
 		        addi $s6, $s6, 1
 		        j ILOOP
 				
-	STOP:	    li $t7, 0
-	            sb $t7, ($s6)
-				sub $s6, $s6, $t2
-	            addi $sp, $sp, -8
+	STOP:	    sub $s6, $s6, $t2
+	            addi $sp, $sp, -12
 				sw $s6, 0($sp)
+				sw $t2, 4($sp)
 				jal subprogram_1
 				jal subprogram_3
-				addi $sp, $sp, 8
+				addi $sp, $sp, 12
 				beq $s0, 10, END
 				
 				la $a0, output2            #address of string to print
@@ -51,35 +50,52 @@ main:
 				
 subprogram_1:	
 				lw $a2, 0($sp)
+				lw $t7, 4($sp)
 				li $s2, 1				   #initialize count to 0
 				li $s1, 0		             #initialize count to 0
 				li $t0, 0
-				li $t9, 0
+				beq $t7, 0, NOTVALID
+				sub $t9, $t7, 1
+				add $a2, $a2, $t9
+				
+    CHECK:	    lb $s4, ($a2)
+				bne $s4, 32, ENDCHECK            #if the character in $t4 is not a space jump to EXIT
+				sub $t7, $t7, 1              #and decrement string length count
+				sub $t9, $t9, 1
+				beq $t7, 0, NOTVALID          #if the length of string is equal to 0 jump to INVALID
+				sub $a2, $a2, 1
+				j CHECK
+	ENDCHECK:	sub $a2, $a2, $t9
+				li $t9, 1
+				li $s4, 0
 				
     WHILELOOP:  move $t0, $s4
 				lb $s4, ($a2)                #load the next character into $t4
-				bgt $t9, 8, LARGE
-				beq $s4, 0, EXIT            #exit loop if character is null
+				bgt $s2, 9, LARGE
+				bgt $t9, $t7, EXIT            #exit loop if character is null
 				beq $t0, 32, DO            #if the character in $t0(previous character) is a space
 				bne $s2, 1, NOSPACE        #and it is not the first character jump to NOSPACE 
 		DO:     beq $s4, 32, SKIP          #or if $t0 and $t3 (current character) are spaces jump
     NOSPACE:    addi $sp, $sp, -4
-                sw $ra, 8($sp)
+                sw $ra, 12($sp)
 				add $a0, $zero, $s4
 				jal subprogram_2
-				lw $ra, 8($sp)
+				lw $ra, 12($sp)
 				addi $sp, $sp, 4
 				add $v1, $v0, $zero
 				beq $v1, -3, NOTVALID
-				beq $s2, 1, DONE
+				beq $t7, $t9, DONE
 				
-				li $t2,2
-                li $t8, 16                 #load 16 into register $t8 
+				sub $t2, $t7, $s2
+				ble $t7, 8, LESS
+				sub $t4, $t7, 8
+				sub $t2, $t2, $t4
+    LESS:       li $t8, 16                 #load 16 into register $t8 
                 li $t3, 16                 #load 16 into register $v0  
-	LOOP:	    beq $t2, $s2, DECIMAL      #if counter equals $t6 end loop
+	LOOP:	    beq $t2, 1, DECIMAL      #if counter equals $t6 end loop
                 multu $t3, $t8             #16 *= 16
                 mflo $t8 		           #store result in $v0 register
-                addi $t2, $t2, 1          #increment counter
+                sub $t2, $t2, 1          #increment counter
                 j LOOP                     #return to top of loop
                 
    DECIMAL:     multu $v1, $t8             #multiply the integer by the results to get its value in the decimal
@@ -92,12 +108,12 @@ subprogram_1:
 				addi $a2, $a2, 1             #increment the string pointer
 				j WHILELOOP                  #return to the top of the loop
 	
-	NOTVALID:   move $s1, $v1
+	NOTVALID:   li $s1, -3
 				j EXIT
 	
 	LARGE:      li $s1, -2
 				
-	EXIT:	    sw $s1, 4($sp)
+	EXIT:	    sw $s1, 8($sp)
 	            jr $ra
    
 subprogram_2:
@@ -130,7 +146,7 @@ subprogram_2:
 	INVALID:    addi $v0, $zero, -3
 				jr $ra
    
-subprogram_3:   lw $s1, 4($sp)
+subprogram_3:   lw $s1, 8($sp)
 				bge $s1, $zero, POSITIVE    #if the decimal value is negative jump to NEGATIVE label 
                 beq $s1, -3, NAN
 				beq $s1, -2, TOOLARGE
