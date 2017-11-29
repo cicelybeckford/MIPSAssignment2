@@ -1,8 +1,6 @@
 #PROGRAM: CONVERT A STRING WITH MULTIPLE HEXADECIMAL VALUES
 
 .data  
-    string: .asciiz ".space 8"
-	output1: .asciiz "\n" 
 	output2: .asciiz ","
 	invalid: .asciiz "NaN"
 	toolarge: .asciiz "too large"
@@ -90,10 +88,10 @@ subprogram_1:
 				beq $t7, $t9, DONE          #if the last loaded character was the last in the string jump to DONE
 				
 				sub $t2, $t7, $t9           #set loop counter to the value of $t7-$t9
-				ble $t7, 8, LESS            #
-				sub $t2, $t7, $s2
-				sub $t4, $t7, 8
-				sub $t2, $t2, $t4
+				ble $t7, 8, LESS            #if $t7 is less than 8 jump to LESS
+				sub $t2, $t7, $s2			#store the difference of $t7 and $s2 in $t2
+				sub $t4, $t7, 8				#subtract 8 from $t7 and store in $t4
+				sub $t2, $t2, $t4           #subtract $t4 from $t2 and store value in register $t2
     LESS:       li $t8, 16                 #load 16 into register $t8 
                 li $t3, 16                 #load 16 into register $v0  
 	LOOP:	    ble $t2, 1, DECIMAL        #if counter equals 1 end loop
